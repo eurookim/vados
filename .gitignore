@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+vados.db
+.DS_Store
+.streamlit/secrets.toml
