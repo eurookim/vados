@@ -19,6 +19,10 @@ from database import (
     resolve_category,
 )
 
+MODEL = "claude-sonnet-4-20250514"
+_client = None
+
+
 def _get_api_key():
     key = os.environ.get("ANTHROPIC_API_KEY")
     if key and key != "your-api-key-here":
@@ -30,13 +34,20 @@ def _get_api_key():
             return key
     except Exception:
         pass
-    raise RuntimeError(
-        "ANTHROPIC_API_KEY is not set. "
-        "Add your key to .env (local) or Streamlit secrets (cloud)."
-    )
+    return None
 
-client = anthropic.Anthropic(api_key=_get_api_key())
-MODEL = "claude-sonnet-4-20250514"
+
+def get_client():
+    global _client
+    if _client is None:
+        key = _get_api_key()
+        if not key:
+            raise RuntimeError(
+                "ANTHROPIC_API_KEY is not set. "
+                "Add your key to .env (local) or Streamlit secrets (cloud)."
+            )
+        _client = anthropic.Anthropic(api_key=key)
+    return _client
 
 DATE_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -158,7 +169,7 @@ def chat(user_message, conversation_history, pending_transaction=None):
             f"If the user wants changes, handle the correction."
         )
 
-    response = client.messages.create(
+    response = get_client().messages.create(
         model=MODEL,
         max_tokens=1024,
         system=system,
@@ -230,7 +241,7 @@ def generate_insight():
 
 {context}"""
 
-    response = client.messages.create(
+    response = get_client().messages.create(
         model=MODEL,
         max_tokens=200,
         system=system,
@@ -262,7 +273,7 @@ Today's date: {date.today().isoformat()}
 
 {context}"""
 
-    response = client.messages.create(
+    response = get_client().messages.create(
         model=MODEL,
         max_tokens=1024,
         system=system,
