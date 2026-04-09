@@ -265,7 +265,7 @@ def add_transaction(date_str, txn_type, amount, category, description, source="m
     )
 
 
-def update_transaction(txn_id, category=None, description=None):
+def update_transaction(txn_id, category=None, description=None, amount=None):
     stmts = []
     if category is not None:
         resolved = resolve_category(category)
@@ -274,6 +274,8 @@ def update_transaction(txn_id, category=None, description=None):
         stmts.append({"sql": "UPDATE transactions SET category = ? WHERE id = ?", "args": [resolved, txn_id]})
     if description is not None:
         stmts.append({"sql": "UPDATE transactions SET description = ? WHERE id = ?", "args": [description, txn_id]})
+    if amount is not None:
+        stmts.append({"sql": "UPDATE transactions SET amount = ? WHERE id = ?", "args": [abs(amount), txn_id]})
     if stmts:
         _execute_many(stmts)
 

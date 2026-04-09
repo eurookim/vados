@@ -807,7 +807,7 @@ def show_history():
         with st.expander(
             f"{txn['date']} | {txn['description']} | {amount_str} | `{txn['category']}` | {txn_cur}"
         ):
-            col1, col2, col3 = st.columns([2, 2, 1])
+            col1, col2 = st.columns(2)
             with col1:
                 new_cat = st.selectbox(
                     "Category",
@@ -815,17 +815,20 @@ def show_history():
                     index=CATEGORIES.index(txn["category"]) if txn["category"] in CATEGORIES else 0,
                     key=f"cat_{txn['id']}",
                 )
-            with col2:
                 new_desc = st.text_input(
                     "Description", value=txn["description"], key=f"desc_{txn['id']}"
                 )
-            with col3:
+            with col2:
+                new_amount = st.number_input(
+                    "Amount", min_value=0.01, value=float(txn["amount"]),
+                    step=0.01, key=f"amt_{txn['id']}"
+                )
                 st.markdown(f"**Source:** {txn['source']}")
 
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("Save Changes", key=f"save_{txn['id']}"):
-                    update_transaction(txn["id"], category=new_cat, description=new_desc)
+                    update_transaction(txn["id"], category=new_cat, description=new_desc, amount=new_amount)
                     st.success("Updated!")
                     st.rerun()
             with c2:
