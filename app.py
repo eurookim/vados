@@ -1074,25 +1074,7 @@ def show_trends():
     expenses = [s["total_expenses"] for s in summaries]
     incomes = [s["total_income"] for s in summaries]
 
-    # --- Chart 1: Monthly Spending Bar Chart ---
-    st.subheader("Monthly Spending")
-    fig1 = go.Figure(go.Bar(
-        x=month_labels, y=expenses,
-        marker=dict(
-            color=expenses,
-            colorscale=[[0, "#6B4CE0"], [1, "#A78BFA"]],
-            cornerradius=6,
-            line=dict(width=0),
-        ),
-        text=[f"{symbol}{e:,.0f}" for e in expenses],
-        textposition="outside",
-        textfont=dict(color="#A78BFA", size=13, family="Inter"),
-        hovertemplate="%{x}<br>Spent: %{text}<extra></extra>",
-    ))
-    _style_chart(fig1, yaxis_title=f"Spent ({cur})", height=380)
-    st.plotly_chart(fig1, use_container_width=True)
-
-    # --- Chart 2: Income vs Expenses ---
+    # --- Chart 1: Income vs Expenses ---
     st.subheader("Income vs Expenses")
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(
