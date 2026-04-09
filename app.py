@@ -1,6 +1,8 @@
 import html
 
 import anthropic
+import plotly.graph_objects as go
+import plotly.express as px
 import streamlit as st
 from datetime import date, datetime
 
@@ -13,12 +15,23 @@ from database import (
     delete_transaction,
     get_all_transactions,
     get_monthly_summary,
+    get_monthly_summaries,
     get_budget_targets,
     set_budget_target,
     remove_budget_target,
     get_last_transaction,
+    get_default_currency,
+    set_default_currency,
+    format_currency,
+    get_recurring_transactions,
+    add_recurring_transaction,
+    update_recurring_transaction,
+    delete_recurring_transaction,
+    process_due_recurring_transactions,
+    get_upcoming_recurring,
     CATEGORIES,
     EXPENSE_CATEGORIES,
+    SUPPORTED_CURRENCIES,
     resolve_category,
 )
 from ai import chat, parse_ai_response, validate_transaction, generate_insight, parse_onboarding_history
@@ -26,6 +39,13 @@ from ai import chat, parse_ai_response, validate_transaction, generate_insight, 
 st.set_page_config(page_title="Vados", page_icon="💰", layout="wide")
 
 init_db()
+
+# Process recurring transactions once per session
+if "recurring_processed" not in st.session_state:
+    _recurring_count = process_due_recurring_transactions()
+    st.session_state.recurring_processed = True
+    if _recurring_count > 0:
+        st.toast(f"Auto-logged {_recurring_count} recurring transaction(s)")
 
 # --- Custom Dark Theme CSS ---
 st.markdown("""
@@ -404,6 +424,7 @@ def show_sidebar():
         st.markdown("---")
         nav_icons = {
             "Dashboard": "📊",
+            "Trends": "📈",
             "Log / Chat": "💬",
             "Transaction History": "📋",
             "Settings": "⚙️",
@@ -440,20 +461,22 @@ def show_dashboard():
 
     summary = get_monthly_summary(view_year, view_month)
     targets = get_budget_targets()
+    cur = get_default_currency()
 
     # Summary cards
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total Income", f"${summary['total_income']:,.2f}")
-    c2.metric("Total Spent", f"${summary['total_expenses']:,.2f}")
+    c1.metric("Total Income", format_currency(summary['total_income'], cur))
+    c2.metric("Total Spent", format_currency(summary['total_expenses'], cur))
     net = summary["net_balance"]
     net_color = "#34D399" if net >= 0 else "#F87171"
+    net_display = format_currency(net, cur)
     c3.markdown(f"""
     <div style="background: linear-gradient(135deg, #1E2235, #252A40); border: 1px solid #2D3350;
         border-radius: 16px; padding: 20px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
         <p style="color: #9BA1B8; font-size: 0.85rem; font-weight: 500; text-transform: uppercase;
             letter-spacing: 0.05em; margin: 0;">Net Balance</p>
         <p style="color: {net_color}; font-size: 1.8rem; font-weight: 700; margin: 0;">
-            ${net:,.2f}</p>
+            {net_display}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -473,8 +496,7 @@ def show_dashboard():
             with col1:
                 if limit:
                     pct = spent / limit
-                    color = "red" if pct >= 1.0 else ("orange" if pct >= 0.8 else "green")
-                    bar_label = f"{cat}: ${spent:.2f} / ${limit:.2f} ({pct*100:.0f}%)"
+                    bar_label = f"{cat}: {format_currency(spent, cur)} / {format_currency(limit, cur)} ({pct*100:.0f}%)"
                     st.progress(min(pct, 1.0), text=bar_label)
                     if pct >= 0.8 and pct < 1.0:
                         with col2:
@@ -484,7 +506,7 @@ def show_dashboard():
                             st.error("Over budget!")
                 else:
                     pct_of_max = spent / max_val if max_val > 0 else 0
-                    st.progress(min(pct_of_max, 1.0), text=f"{cat}: ${spent:.2f}")
+                    st.progress(min(pct_of_max, 1.0), text=f"{cat}: {format_currency(spent, cur)}")
     else:
         st.info("No expenses logged this month yet.")
 
@@ -552,6 +574,29 @@ def show_dashboard():
         """, unsafe_allow_html=True)
     else:
         st.info("Start logging transactions to get AI-powered insights!")
+
+    # Upcoming recurring transactions
+    upcoming = get_upcoming_recurring(30)
+    if upcoming:
+        st.markdown("---")
+        st.subheader("Upcoming Recurring")
+        for rec in upcoming:
+            rec_cur = rec.get("currency", cur)
+            freq_label = rec["frequency"].capitalize()
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #1E2235, #252A40); border: 1px solid #2D3350;
+                border-radius: 12px; padding: 14px 18px; margin-bottom: 8px;
+                display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="color: #E8EAF0; font-weight: 600;">{html.escape(rec['description'])}</span>
+                    <span style="color: #6B7094; font-size: 0.85rem; margin-left: 8px;">{freq_label} &middot; {rec['category']}</span>
+                </div>
+                <div>
+                    <span style="color: #A78BFA; font-weight: 700;">{format_currency(rec['amount'], rec_cur)}</span>
+                    <span style="color: #6B7094; font-size: 0.8rem; margin-left: 8px;">Due {rec['next_due_date']}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 # ============================================================
@@ -643,7 +688,8 @@ def show_chat():
                     if valid:
                         add_transaction(
                             txn["date"], txn["type"], txn["amount"],
-                            txn["category"], txn["description"]
+                            txn["category"], txn["description"],
+                            currency=txn.get("currency", get_default_currency()),
                         )
                         saved += 1
                 st.session_state.pending_transaction = None
@@ -755,10 +801,11 @@ def show_history():
     for txn in txns:
         color = "green" if txn["type"] == "income" else "red"
         sign = "+" if txn["type"] == "income" else "-"
-        amount_str = f":{color}[{sign}${txn['amount']:.2f}]"
+        txn_cur = txn.get("currency", "USD")
+        amount_str = f":{color}[{sign}{format_currency(txn['amount'], txn_cur)}]"
 
         with st.expander(
-            f"{txn['date']} | {txn['description']} | {amount_str} | `{txn['category']}`"
+            f"{txn['date']} | {txn['description']} | {amount_str} | `{txn['category']}` | {txn_cur}"
         ):
             col1, col2, col3 = st.columns([2, 2, 1])
             with col1:
@@ -812,6 +859,8 @@ def show_settings():
 
     profile = get_or_create_profile()
     targets = get_budget_targets()
+    cur = get_default_currency()
+    cur_symbol = SUPPORTED_CURRENCIES.get(cur, "$")
 
     # Goals
     st.subheader("Financial Goals")
@@ -823,16 +872,34 @@ def show_settings():
 
     st.markdown("---")
 
+    # Default currency
+    st.subheader("Default Currency")
+    currency_list = list(SUPPORTED_CURRENCIES.keys())
+    cur_index = currency_list.index(cur) if cur in currency_list else 0
+    new_currency = st.selectbox(
+        "Currency",
+        currency_list,
+        index=cur_index,
+        format_func=lambda c: f"{c} ({SUPPORTED_CURRENCIES[c]})",
+        key="settings_currency",
+    )
+    if st.button("Update Currency"):
+        set_default_currency(new_currency)
+        st.success(f"Default currency set to {new_currency}!")
+        st.rerun()
+
+    st.markdown("---")
+
     # Budget targets
     st.subheader("Budget Targets")
-    st.caption("Set monthly spending limits per category. Set to 0 to remove.")
+    st.caption(f"Set monthly spending limits per category ({cur}). Set to 0 to remove.")
     cols = st.columns(3)
     new_targets = {}
     for i, cat in enumerate(EXPENSE_CATEGORIES):
         with cols[i % 3]:
             current = targets.get(cat, 0.0)
             val = st.number_input(
-                f"{cat} ($)", min_value=0.0, value=current, step=10.0,
+                f"{cat} ({cur_symbol})", min_value=0.0, value=current, step=10.0,
                 key=f"settings_budget_{cat}"
             )
             new_targets[cat] = val
@@ -845,6 +912,82 @@ def show_settings():
                 remove_budget_target(cat)
         st.success("Budget targets updated!")
         st.rerun()
+
+    st.markdown("---")
+
+    # Recurring transactions
+    st.subheader("Recurring Transactions")
+    st.caption("Set up transactions that auto-log on a schedule.")
+
+    recurring = get_recurring_transactions(active_only=False)
+    if recurring:
+        for rec in recurring:
+            rec_cur = rec.get("currency", cur)
+            active_label = "Active" if rec.get("active") else "Paused"
+            status_color = "#34D399" if rec.get("active") else "#6B7094"
+            with st.expander(
+                f"{rec['description']} | {format_currency(rec['amount'], rec_cur)} | "
+                f"{rec['frequency']} | :{('green' if rec.get('active') else 'gray')}[{active_label}]"
+            ):
+                rc1, rc2, rc3 = st.columns(3)
+                with rc1:
+                    new_amount = st.number_input(
+                        "Amount", min_value=0.01, value=float(rec["amount"]),
+                        step=1.0, key=f"rec_amt_{rec['id']}"
+                    )
+                with rc2:
+                    new_freq = st.selectbox(
+                        "Frequency", ["weekly", "biweekly", "monthly"],
+                        index=["weekly", "biweekly", "monthly"].index(rec["frequency"]),
+                        key=f"rec_freq_{rec['id']}"
+                    )
+                with rc3:
+                    new_active = st.checkbox("Active", value=bool(rec.get("active")), key=f"rec_active_{rec['id']}")
+
+                bc1, bc2 = st.columns(2)
+                with bc1:
+                    if st.button("Save Changes", key=f"rec_save_{rec['id']}"):
+                        update_recurring_transaction(
+                            rec["id"], amount=new_amount, frequency=new_freq,
+                            active=1 if new_active else 0
+                        )
+                        st.success("Updated!")
+                        st.rerun()
+                with bc2:
+                    if st.button("Delete", key=f"rec_del_{rec['id']}", type="secondary"):
+                        delete_recurring_transaction(rec["id"])
+                        st.success("Deleted!")
+                        st.rerun()
+
+    # Add new recurring transaction
+    st.markdown("**Add New Recurring Transaction**")
+    ac1, ac2 = st.columns(2)
+    with ac1:
+        new_rec_type = st.selectbox("Type", ["expense", "income"], key="new_rec_type")
+        new_rec_amount = st.number_input("Amount", min_value=0.01, step=1.0, key="new_rec_amount")
+        new_rec_cat = st.selectbox("Category", CATEGORIES, key="new_rec_cat")
+    with ac2:
+        new_rec_desc = st.text_input("Description", key="new_rec_desc")
+        new_rec_freq = st.selectbox("Frequency", ["monthly", "weekly", "biweekly"], key="new_rec_freq")
+        new_rec_date = st.date_input("Next Due Date", value=date.today(), key="new_rec_date")
+        new_rec_currency = st.selectbox(
+            "Currency", currency_list,
+            index=cur_index,
+            format_func=lambda c: f"{c} ({SUPPORTED_CURRENCIES[c]})",
+            key="new_rec_currency",
+        )
+
+    if st.button("Add Recurring Transaction", type="primary"):
+        if new_rec_desc.strip() and new_rec_amount > 0:
+            add_recurring_transaction(
+                new_rec_type, new_rec_amount, new_rec_cat,
+                new_rec_desc.strip(), new_rec_freq,
+                new_rec_date.isoformat(), currency=new_rec_currency,
+            )
+            st.success("Recurring transaction added!")
+            st.rerun()
+        else:
+            st.error("Please fill in description and amount.")
 
     st.markdown("---")
 
@@ -873,6 +1016,123 @@ def show_settings():
 
 
 # ============================================================
+# TRENDS
+# ============================================================
+
+CHART_LAYOUT = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#E8EAF0", family="Inter"),
+    xaxis=dict(gridcolor="#2D3350", showgrid=True),
+    yaxis=dict(gridcolor="#2D3350", showgrid=True),
+    margin=dict(l=40, r=20, t=40, b=40),
+    legend=dict(bgcolor="rgba(0,0,0,0)"),
+)
+
+CATEGORY_COLORS = {
+    "Food": "#FF6B6B", "Transport": "#4ECDC4", "Entertainment": "#45B7D1",
+    "Shopping": "#FFA07A", "Subscriptions": "#DDA0DD", "Health": "#98D8C8",
+    "Housing": "#F7DC6F", "Education": "#BB8FCE", "Personal": "#85C1E9",
+    "Income": "#34D399",
+}
+
+
+def show_trends():
+    st.title("Spending Trends")
+    cur = get_default_currency()
+    symbol = SUPPORTED_CURRENCIES.get(cur, "$")
+
+    summaries = get_monthly_summaries(6)
+    targets = get_budget_targets()
+
+    month_labels = []
+    for s in summaries:
+        month_labels.append(date(s["year"], s["month"], 1).strftime("%b %Y"))
+
+    # --- Chart 1: Monthly Spending Bar Chart ---
+    st.subheader("Monthly Spending (Last 6 Months)")
+    expenses = [s["total_expenses"] for s in summaries]
+    fig1 = go.Figure(go.Bar(
+        x=month_labels, y=expenses,
+        marker_color="#7C5CFC",
+        text=[f"{symbol}{e:,.0f}" for e in expenses],
+        textposition="outside",
+    ))
+    fig1.update_layout(**CHART_LAYOUT, yaxis_title=f"Spent ({cur})")
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # --- Chart 2: Category Breakdown Donut ---
+    st.subheader("Category Breakdown")
+    col_sel, _ = st.columns([1, 3])
+    with col_sel:
+        sel_idx = st.selectbox(
+            "Month", range(len(month_labels)),
+            index=len(month_labels) - 1,
+            format_func=lambda i: month_labels[i],
+            key="trend_month_sel",
+        )
+    by_cat = summaries[sel_idx]["by_category"]
+    if by_cat:
+        cats = list(by_cat.keys())
+        vals = list(by_cat.values())
+        colors = [CATEGORY_COLORS.get(c, "#7C5CFC") for c in cats]
+        fig2 = go.Figure(go.Pie(
+            labels=cats, values=vals,
+            hole=0.4,
+            marker=dict(colors=colors),
+            textinfo="label+percent",
+            textfont=dict(color="#E8EAF0"),
+        ))
+        fig2.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#E8EAF0", family="Inter"),
+            legend=dict(bgcolor="rgba(0,0,0,0)"),
+            margin=dict(l=20, r=20, t=20, b=20),
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.info("No expenses for this month.")
+
+    # --- Chart 3: Income vs Expenses Over Time ---
+    st.subheader("Income vs Expenses Over Time")
+    incomes = [s["total_income"] for s in summaries]
+    fig3 = go.Figure()
+    fig3.add_trace(go.Scatter(
+        x=month_labels, y=incomes, name="Income",
+        line=dict(color="#34D399", width=3),
+        mode="lines+markers",
+    ))
+    fig3.add_trace(go.Scatter(
+        x=month_labels, y=expenses, name="Expenses",
+        line=dict(color="#F87171", width=3),
+        mode="lines+markers",
+    ))
+    fig3.update_layout(**CHART_LAYOUT, yaxis_title=f"Amount ({cur})")
+    st.plotly_chart(fig3, use_container_width=True)
+
+    # --- Chart 4: Budget vs Actual ---
+    if targets:
+        st.subheader("Budget vs Actual (This Month)")
+        current = summaries[-1]["by_category"]
+        budget_cats = [c for c in targets if c in current or targets[c] > 0]
+        if budget_cats:
+            actual_vals = [current.get(c, 0) for c in budget_cats]
+            budget_vals = [targets[c] for c in budget_cats]
+            fig4 = go.Figure()
+            fig4.add_trace(go.Bar(
+                x=budget_cats, y=actual_vals, name="Actual",
+                marker_color="#7C5CFC",
+            ))
+            fig4.add_trace(go.Bar(
+                x=budget_cats, y=budget_vals, name="Budget",
+                marker_color="#2D3350",
+                marker_line=dict(color="#7C5CFC", width=1),
+            ))
+            fig4.update_layout(**CHART_LAYOUT, barmode="group", yaxis_title=f"Amount ({cur})")
+            st.plotly_chart(fig4, use_container_width=True)
+
+
+# ============================================================
 # MAIN
 # ============================================================
 def main():
@@ -887,6 +1147,8 @@ def main():
     page = st.session_state.page
     if page == "Dashboard":
         show_dashboard()
+    elif page == "Trends":
+        show_trends()
     elif page == "Log / Chat":
         show_chat()
     elif page == "Transaction History":

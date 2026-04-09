@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 
 import requests
 
@@ -13,6 +13,11 @@ CATEGORIES = [
 ]
 
 EXPENSE_CATEGORIES = [c for c in CATEGORIES if c != "Income"]
+
+SUPPORTED_CURRENCIES = {
+    "USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "JPY": "\u00a5",
+    "KRW": "\u20a9", "CAD": "C$", "AUD": "A$", "INR": "\u20b9",
+}
 
 CATEGORY_SYNONYMS = {
     "dining": "Food",
@@ -179,6 +184,14 @@ def _execute_many(statements):
 # PUBLIC API
 # ============================================================
 
+def _safe_add_column(table, column, col_def):
+    """Add a column if it doesn't already exist. Works for both SQLite and Turso."""
+    rows = _fetchall(f"PRAGMA table_info({table})")
+    existing = {r.get("name") for r in rows}
+    if column not in existing:
+        _execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
+
+
 def init_db():
     _execute_many([
         {"sql": """CREATE TABLE IF NOT EXISTS transactions (
@@ -202,7 +215,22 @@ def init_db():
             category TEXT PRIMARY KEY,
             monthly_limit REAL NOT NULL
         )"""},
+        {"sql": """CREATE TABLE IF NOT EXISTS recurring_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+            amount REAL NOT NULL,
+            category TEXT NOT NULL,
+            description TEXT NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'USD',
+            frequency TEXT NOT NULL CHECK(frequency IN ('weekly', 'biweekly', 'monthly')),
+            next_due_date TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )"""},
     ])
+    # Migrate existing tables with new columns
+    _safe_add_column("transactions", "currency", "TEXT NOT NULL DEFAULT 'USD'")
+    _safe_add_column("user_profile", "default_currency", "TEXT NOT NULL DEFAULT 'USD'")
 
 
 def get_or_create_profile():
@@ -227,13 +255,13 @@ def update_profile(goals=None, onboarding_complete=None, last_insight_at=None):
         _execute_many(stmts)
 
 
-def add_transaction(date_str, txn_type, amount, category, description, source="manual"):
+def add_transaction(date_str, txn_type, amount, category, description, source="manual", currency="USD"):
     resolved = resolve_category(category)
     if resolved is None:
         raise ValueError(f"Unknown category: {category}")
     _execute(
-        "INSERT INTO transactions (date, type, amount, category, description, source) VALUES (?, ?, ?, ?, ?, ?)",
-        (date_str, txn_type, abs(amount), resolved, description, source),
+        "INSERT INTO transactions (date, type, amount, category, description, source, currency) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (date_str, txn_type, abs(amount), resolved, description, source, currency),
     )
 
 
@@ -331,3 +359,128 @@ def resolve_category(category):
 
 def get_last_transaction():
     return _fetchone("SELECT * FROM transactions ORDER BY id DESC LIMIT 1")
+
+
+# ============================================================
+# CURRENCY
+# ============================================================
+
+def get_default_currency():
+    row = _fetchone("SELECT default_currency FROM user_profile WHERE id = 1")
+    return row["default_currency"] if row else "USD"
+
+
+def set_default_currency(currency):
+    _execute("UPDATE user_profile SET default_currency = ? WHERE id = 1", (currency,))
+
+
+def format_currency(amount, currency="USD"):
+    symbol = SUPPORTED_CURRENCIES.get(currency, currency + " ")
+    if currency == "JPY" or currency == "KRW":
+        return f"{symbol}{amount:,.0f}"
+    return f"{symbol}{amount:,.2f}"
+
+
+# ============================================================
+# RECURRING TRANSACTIONS
+# ============================================================
+
+def add_recurring_transaction(txn_type, amount, category, description, frequency, next_due_date, currency="USD"):
+    resolved = resolve_category(category)
+    if resolved is None:
+        raise ValueError(f"Unknown category: {category}")
+    _execute(
+        "INSERT INTO recurring_transactions (type, amount, category, description, currency, frequency, next_due_date) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (txn_type, abs(amount), resolved, description, currency, frequency, next_due_date),
+    )
+
+
+def get_recurring_transactions(active_only=True):
+    if active_only:
+        return _fetchall("SELECT * FROM recurring_transactions WHERE active = 1 ORDER BY next_due_date")
+    return _fetchall("SELECT * FROM recurring_transactions ORDER BY next_due_date")
+
+
+def update_recurring_transaction(rec_id, **kwargs):
+    stmts = []
+    allowed = {"amount", "category", "description", "frequency", "next_due_date", "active", "currency"}
+    for key, val in kwargs.items():
+        if key not in allowed:
+            continue
+        if key == "category":
+            val = resolve_category(val)
+            if val is None:
+                continue
+        stmts.append({"sql": f"UPDATE recurring_transactions SET {key} = ? WHERE id = ?", "args": [val, rec_id]})
+    if stmts:
+        _execute_many(stmts)
+
+
+def delete_recurring_transaction(rec_id):
+    _execute("DELETE FROM recurring_transactions WHERE id = ?", (rec_id,))
+
+
+def _advance_date(date_str, frequency):
+    """Calculate the next due date based on frequency."""
+    d = date.fromisoformat(date_str)
+    if frequency == "weekly":
+        return (d + timedelta(days=7)).isoformat()
+    elif frequency == "biweekly":
+        return (d + timedelta(days=14)).isoformat()
+    else:  # monthly
+        month = d.month + 1
+        year = d.year
+        if month > 12:
+            month = 1
+            year += 1
+        day = min(d.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28,
+                          31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+        return date(year, month, day).isoformat()
+
+
+def process_due_recurring_transactions():
+    """Auto-log any recurring transactions that are due. Returns count of logged transactions."""
+    due = _fetchall(
+        "SELECT * FROM recurring_transactions WHERE active = 1 AND next_due_date <= ?",
+        (date.today().isoformat(),),
+    )
+    count = 0
+    for rec in due:
+        add_transaction(
+            rec["next_due_date"], rec["type"], rec["amount"],
+            rec["category"], rec["description"],
+            source="recurring", currency=rec.get("currency", "USD"),
+        )
+        new_date = _advance_date(rec["next_due_date"], rec["frequency"])
+        _execute(
+            "UPDATE recurring_transactions SET next_due_date = ? WHERE id = ?",
+            (new_date, rec["id"]),
+        )
+        count += 1
+    return count
+
+
+def get_upcoming_recurring(days=30):
+    cutoff = (date.today() + timedelta(days=days)).isoformat()
+    return _fetchall(
+        "SELECT * FROM recurring_transactions WHERE active = 1 AND next_due_date <= ? ORDER BY next_due_date",
+        (cutoff,),
+    )
+
+
+# ============================================================
+# TRENDS
+# ============================================================
+
+def get_monthly_summaries(months=6):
+    today = date.today()
+    results = []
+    for i in range(months):
+        m = today.month - i
+        y = today.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        results.append({"year": y, "month": m, **get_monthly_summary(y, m)})
+    return list(reversed(results))

@@ -12,10 +12,14 @@ import anthropic
 
 from database import (
     CATEGORIES,
+    SUPPORTED_CURRENCIES,
     get_monthly_summary,
     get_recent_transactions,
     get_budget_targets,
     get_or_create_profile,
+    get_default_currency,
+    get_upcoming_recurring,
+    format_currency,
     resolve_category,
 )
 
@@ -57,15 +61,17 @@ def build_rag_context():
     recent = get_recent_transactions(15)
     targets = get_budget_targets()
     profile = get_or_create_profile()
+    default_currency = get_default_currency()
 
     today = date.today()
     month_name = today.strftime("%B %Y")
 
     lines = [f"=== FINANCIAL CONTEXT FOR {month_name} ==="]
     lines.append(f"Today's date: {today.isoformat()}")
-    lines.append(f"Total income this month: ${summary['total_income']:.2f}")
-    lines.append(f"Total expenses this month: ${summary['total_expenses']:.2f}")
-    lines.append(f"Net balance: ${summary['net_balance']:.2f}")
+    lines.append(f"Default currency: {default_currency}")
+    lines.append(f"Total income this month: {format_currency(summary['total_income'], default_currency)}")
+    lines.append(f"Total expenses this month: {format_currency(summary['total_expenses'], default_currency)}")
+    lines.append(f"Net balance: {format_currency(summary['net_balance'], default_currency)}")
     lines.append(f"Savings rate: {summary['savings_rate']:.1f}%")
 
     if summary["by_category"]:
@@ -74,21 +80,31 @@ def build_rag_context():
             budget_str = ""
             if cat in targets:
                 pct = amt / targets[cat] * 100
-                budget_str = f" (budget: ${targets[cat]:.2f}, used: {pct:.0f}%)"
-            lines.append(f"  {cat}: ${amt:.2f}{budget_str}")
+                budget_str = f" (budget: {format_currency(targets[cat], default_currency)}, used: {pct:.0f}%)"
+            lines.append(f"  {cat}: {format_currency(amt, default_currency)}{budget_str}")
 
     if targets:
         lines.append("\nBudget targets:")
         for cat, limit in targets.items():
             spent = summary["by_category"].get(cat, 0)
-            lines.append(f"  {cat}: ${spent:.2f} / ${limit:.2f}")
+            lines.append(f"  {cat}: {format_currency(spent, default_currency)} / {format_currency(limit, default_currency)}")
 
     if recent:
         lines.append(f"\nMost recent transactions (up to 15):")
         for t in recent:
             sign = "+" if t["type"] == "income" else "-"
+            cur = t.get("currency", default_currency)
             lines.append(
-                f"  [{t['date']}] {sign}${t['amount']:.2f} — {t['category']}: {t['description']}"
+                f"  [{t['date']}] {sign}{format_currency(t['amount'], cur)} — {t['category']}: {t['description']}"
+            )
+
+    upcoming = get_upcoming_recurring(14)
+    if upcoming:
+        lines.append("\nUpcoming recurring transactions (next 14 days):")
+        for r in upcoming:
+            cur = r.get("currency", default_currency)
+            lines.append(
+                f"  {r['description']}: {format_currency(r['amount'], cur)} ({r['frequency']}, due {r['next_due_date']})"
             )
 
     if profile.get("goals"):
@@ -116,7 +132,8 @@ When you identify a transaction, respond with ONLY a JSON block in this exact fo
       "amount": <number, positive, no currency symbol>,
       "category": "<one of: Food, Transport, Entertainment, Shopping, Subscriptions, Health, Housing, Education, Personal, Income>",
       "description": "<short clean label>",
-      "date": "<YYYY-MM-DD, default to today if not specified>"
+      "date": "<YYYY-MM-DD, default to today if not specified>",
+      "currency": "<3-letter currency code, default to user's default currency if not specified>"
     }
   ],
   "confirmation_message": "<friendly message summarizing what you parsed, asking the user to confirm>"
@@ -131,6 +148,11 @@ IMPORTANT category rules:
 - Use ONLY these categories: Food, Transport, Entertainment, Shopping, Subscriptions, Health, Housing, Education, Personal, Income
 - For income transactions, always use category "Income" and type "income"
 - Pick the single best-fit category
+
+IMPORTANT currency rules:
+- The user's default currency is provided in the context. Use it unless the user specifies otherwise.
+- Supported currencies: USD, EUR, GBP, JPY, KRW, CAD, AUD, INR
+- If the user mentions a currency symbol or code (e.g. "50 euros", "£30", "¥5000"), use the appropriate currency code.
 
 FOR Q&A:
 Answer naturally and conversationally. Ground your answers in the financial data provided below. Reference specific numbers. If the user asks about something not in the data, say so honestly.
@@ -232,6 +254,9 @@ def validate_transaction(txn):
         txn["date"] = date.today().isoformat()
     elif not is_valid_date(txn["date"]):
         txn["date"] = date.today().isoformat()
+    # Default currency to user's default if not specified or invalid
+    if not txn.get("currency") or txn["currency"] not in SUPPORTED_CURRENCIES:
+        txn["currency"] = get_default_currency()
     return True, None
 
 
