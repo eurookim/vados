@@ -20,6 +20,15 @@ Vados is an AI-powered personal finance assistant built with Streamlit. Log tran
 - [Plotly](https://plotly.com/python/) — charts
 - SQLite / [Turso](https://turso.tech/) — storage
 
+## Testing
+
+The natural-language transaction parser has an eval harness in [`evals/`](evals/README.md):
+50 hand-written cases across seven groups, run against a pinned date for
+deterministic relative-date cases with response caching to avoid re-spending
+API calls on reruns. Current results: **50/50 intent accuracy**, **100%**
+field accuracy on type/amount/date/currency, **95.7%** on category.
+See [`evals/README.md`](evals/README.md) for how to run it and full details.
+
 ## Setup
 
 ### 1. Clone and install dependencies
@@ -65,4 +74,5 @@ ai.py           # Claude integration: chat, transaction parsing, insights
 database.py     # Data layer (SQLite or Turso), categories, budgets, recurring transactions
 requirements.txt
 .streamlit/     # Streamlit theme config
+evals/          # Eval harness for the transaction parser (test cases, runner, results)
 ```
