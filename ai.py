@@ -65,7 +65,7 @@ def _extract_text(response):
     )
 
 
-def build_rag_context():
+def build_spending_context():
     summary = get_monthly_summary()
     recent = get_recent_transactions(15)
     targets = get_budget_targets()
@@ -185,7 +185,7 @@ FINANCIAL CONTEXT:
 
 
 def chat(user_message, conversation_history, pending_transaction=None):
-    context = build_rag_context()
+    context = build_spending_context()
     system = SYSTEM_PROMPT.replace("{context}", context)
 
     messages = list(conversation_history)
@@ -272,7 +272,7 @@ def validate_transaction(txn):
 
 
 def generate_insight():
-    context = build_rag_context()
+    context = build_spending_context()
     system = f"""You are Vados, an AI finance assistant. Based on the user's financial data below, generate ONE short, specific, actionable insight about their spending this month. Be direct and reference real numbers. Keep it to 1-2 sentences max.
 
 {context}"""
@@ -287,7 +287,7 @@ def generate_insight():
 
 
 def parse_onboarding_history(user_message):
-    context = build_rag_context()
+    context = build_spending_context()
     system = f"""You are Vados. The user is providing historical spending data during onboarding. Parse ALL transactions mentioned into structured data.
 
 Respond with ONLY a JSON block:

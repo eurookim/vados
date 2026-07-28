@@ -36,7 +36,7 @@ class _FakeDate(real_date):
         return PINNED_TODAY
 
 
-FIXED_RAG_CONTEXT = """=== FINANCIAL CONTEXT FOR January 2025 ===
+FIXED_SPENDING_CONTEXT = """=== FINANCIAL CONTEXT FOR January 2025 ===
 Today's date: 2025-01-15
 Default currency: USD
 Total income this month: $3,200.00
@@ -73,8 +73,8 @@ User's financial goals: Save 20% of income each month
 """
 
 
-def _stub_build_rag_context():
-    return FIXED_RAG_CONTEXT
+def _stub_build_spending_context():
+    return FIXED_SPENDING_CONTEXT
 
 
 def _stub_get_default_currency():
@@ -83,7 +83,7 @@ def _stub_get_default_currency():
 
 def apply_stubs():
     ai.date = _FakeDate
-    ai.build_rag_context = _stub_build_rag_context
+    ai.build_spending_context = _stub_build_spending_context
     ai.get_default_currency = _stub_get_default_currency
 
 

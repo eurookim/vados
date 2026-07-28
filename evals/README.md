@@ -27,7 +27,7 @@ Requires `ANTHROPIC_API_KEY` in `.env`, same as the app.
 - **Pinned date**: `ai.date` is monkeypatched to a fixed `2025-01-15` for the
   run, so relative-date cases ("yesterday", "last Friday") are stable
   regardless of when the eval is run. `ai.py` itself is never modified.
-- **No real DB access**: `ai.build_rag_context()` and
+- **No real DB access**: `ai.build_spending_context()` and
   `ai.get_default_currency()` are monkeypatched to fixed values, so the eval
   never touches `vados.db` or Turso.
 - **Caching**: each case's API response is cached to `evals/.cache/<hash>.json`,
