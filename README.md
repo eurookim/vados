@@ -1,4 +1,4 @@
-# Vados 💰
+# Vados
 
 Vados is an AI-powered personal finance assistant built with Streamlit. Log transactions by chatting naturally, track spending against budgets, and get AI-generated insights into your finances.
 
