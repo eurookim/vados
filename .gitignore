@@ -4,3 +4,4 @@ __pycache__/
 vados.db
 .DS_Store
 .streamlit/secrets.toml
+evals/.cache/

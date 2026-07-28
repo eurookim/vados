@@ -23,7 +23,7 @@ from database import (
     resolve_category,
 )
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "claude-sonnet-5"
 _client = None
 
 
@@ -54,6 +54,15 @@ def get_client():
     return _client
 
 DATE_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _extract_text(response):
+    """Return the concatenated text content of a Messages API response.
+    Models with extended thinking enabled prepend non-text blocks (e.g.
+    ThinkingBlock), so content[0] is not reliably the text block."""
+    return "".join(
+        block.text for block in response.content if block.type == "text"
+    )
 
 
 def build_rag_context():
@@ -120,6 +129,8 @@ SYSTEM_PROMPT = """You are Vados, an AI-powered personal finance assistant. You 
 2. FINANCIAL Q&A: If the user asks a question about their finances, spending patterns, budget, or asks for advice, answer using the financial context provided below.
 
 3. AMBIGUOUS: If you cannot tell whether the message is a transaction or a question, ask: "Did you want to log that as a transaction, or are you asking about your spending?"
+
+IMPORTANT: A transaction message MUST include an amount. If the message mentions spending/earning/an item but gives no number (e.g. "coffee", "restaurant", "thinking about groceries"), do NOT guess or invent an amount — treat it as AMBIGUOUS and ask for the amount instead.
 
 FOR TRANSACTIONS:
 When you identify a transaction, respond with ONLY a JSON block in this exact format (no other text):
@@ -198,7 +209,7 @@ def chat(user_message, conversation_history, pending_transaction=None):
         messages=messages,
     )
 
-    return response.content[0].text
+    return _extract_text(response)
 
 
 def parse_ai_response(response_text):
@@ -272,7 +283,7 @@ def generate_insight():
         system=system,
         messages=[{"role": "user", "content": "Give me one key financial insight for this month."}],
     )
-    return response.content[0].text
+    return _extract_text(response)
 
 
 def parse_onboarding_history(user_message):
@@ -304,4 +315,4 @@ Today's date: {date.today().isoformat()}
         system=system,
         messages=[{"role": "user", "content": user_message}],
     )
-    return parse_ai_response(response.content[0].text)
+    return parse_ai_response(_extract_text(response))
