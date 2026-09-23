@@ -22,7 +22,17 @@ Vados is an AI-powered personal finance assistant built with Streamlit. Log tran
 
 ## Testing
 
-The natural-language transaction parser has an eval harness in [`evals/`](evals/README.md):
+Unit and smoke tests live in [`tests/`](tests/). They run against a temporary
+SQLite database with a fake Anthropic client, so they never touch `vados.db` or
+make API calls. The smoke tests render every page headlessly with Streamlit's
+`AppTest`.
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+The natural-language transaction parser also has an eval harness in [`evals/`](evals/README.md):
 50 hand-written cases across seven groups, run against a pinned date for
 deterministic relative-date cases with response caching to avoid re-spending
 API calls on reruns. Current results: **50/50 intent accuracy**, **100%**
@@ -69,10 +79,14 @@ The app will be available at `http://localhost:8501`.
 ## Project Structure
 
 ```
-app.py          # Streamlit UI, pages, and layout
+app.py          # Entry point: setup, session defaults, page routing
+views/          # One module per page (dashboard, trends, chat, history, settings,
+                #   onboarding, sidebar) plus theme.py, the color palette
+style.css       # Theme styles; colors come from views/theme.py as CSS variables
 ai.py           # Claude integration: chat, transaction parsing, insights
 database.py     # Data layer (SQLite or Turso), categories, budgets, recurring transactions
-requirements.txt
-.streamlit/     # Streamlit theme config
+tests/          # Unit tests and headless page smoke tests
 evals/          # Eval harness for the transaction parser (test cases, runner, results)
+requirements.txt / requirements-dev.txt
+.streamlit/     # Streamlit theme config
 ```
