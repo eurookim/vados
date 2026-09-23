@@ -1,0 +1,214 @@
+/* ---- Global ---- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* ---- Main container ---- */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1100px;
+}
+
+/* ---- Rounded cards for metrics ---- */
+[data-testid="stMetric"] {
+    background: linear-gradient(135deg, #1E2235 0%, #252A40 100%);
+    border: 1px solid #2D3350;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+[data-testid="stMetricLabel"] {
+    color: #9BA1B8 !important;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+[data-testid="stMetricValue"] {
+    color: #E8EAF0 !important;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+/* ---- Sidebar ---- */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #13152A 0%, #1A1D34 100%);
+    border-right: 1px solid #2D3350;
+}
+
+[data-testid="stSidebar"] .stTitle {
+    color: #7C5CFC !important;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+/* ---- Buttons ---- */
+.stButton > button {
+    border-radius: 12px !important;
+    padding: 0.55rem 1.4rem !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+    border: 1px solid #2D3350 !important;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(124, 92, 252, 0.3) !important;
+}
+
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #7C5CFC 0%, #6B4CE0 100%) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.stButton > button[kind="secondary"] {
+    background: #1E2235 !important;
+    color: #B0B7D1 !important;
+}
+
+/* ---- Inputs ---- */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea,
+.stNumberInput > div > div > input,
+.stSelectbox > div > div {
+    border-radius: 12px !important;
+    border: 1px solid #2D3350 !important;
+    background-color: #1A1D29 !important;
+    color: #E8EAF0 !important;
+}
+
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus,
+.stNumberInput > div > div > input:focus {
+    border-color: #7C5CFC !important;
+    box-shadow: 0 0 0 2px rgba(124, 92, 252, 0.2) !important;
+}
+
+/* ---- Chat ---- */
+[data-testid="stChatMessage"] {
+    border-radius: 16px !important;
+    padding: 16px 20px !important;
+    margin-bottom: 12px !important;
+    border: 1px solid #2D3350;
+}
+
+[data-testid="stChatInput"] > div {
+    border-radius: 16px !important;
+    border: 1px solid #2D3350 !important;
+    background-color: #1A1D29 !important;
+}
+
+[data-testid="stChatInput"] textarea {
+    color: #E8EAF0 !important;
+}
+
+/* ---- Expanders (transaction history) ---- */
+[data-testid="stExpander"] {
+    border-radius: 14px !important;
+    border: 1px solid #2D3350 !important;
+    background-color: #1A1D29 !important;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+[data-testid="stExpander"] summary {
+    border-radius: 14px !important;
+    padding: 12px 16px !important;
+}
+
+/* ---- Progress bars ---- */
+.stProgress > div > div {
+    border-radius: 10px !important;
+    height: 12px !important;
+}
+
+.stProgress > div > div > div {
+    border-radius: 10px !important;
+    background: linear-gradient(90deg, #7C5CFC 0%, #A78BFA 100%) !important;
+}
+
+/* ---- Alerts / Info / Warning / Error ---- */
+[data-testid="stAlert"] {
+    border-radius: 14px !important;
+    border: 1px solid #2D3350 !important;
+}
+
+.stInfo, [data-baseweb="notification"][kind="info"] {
+    background-color: #1A2340 !important;
+    border-left: 4px solid #7C5CFC !important;
+    border-radius: 14px !important;
+}
+
+.stSuccess {
+    background-color: #1A3328 !important;
+    border-left: 4px solid #34D399 !important;
+    border-radius: 14px !important;
+}
+
+.stWarning {
+    background-color: #332A1A !important;
+    border-left: 4px solid #FBBF24 !important;
+    border-radius: 14px !important;
+}
+
+.stError {
+    background-color: #331A1A !important;
+    border-left: 4px solid #F87171 !important;
+    border-radius: 14px !important;
+}
+
+/* ---- Dividers ---- */
+hr {
+    border-color: #2D3350 !important;
+    opacity: 0.5;
+}
+
+/* ---- Headings ---- */
+h1 {
+    color: #E8EAF0 !important;
+    font-weight: 700 !important;
+}
+
+h2, h3 {
+    color: #C4C9E0 !important;
+    font-weight: 600 !important;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0E1117;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #2D3350;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #7C5CFC;
+}
+
+/* ---- Number input buttons ---- */
+.stNumberInput button {
+    border-radius: 8px !important;
+}
+
+/* ---- Selectbox dropdown ---- */
+[data-baseweb="select"] {
+    border-radius: 12px !important;
+}
+
+[data-baseweb="popover"] {
+    border-radius: 12px !important;
+}

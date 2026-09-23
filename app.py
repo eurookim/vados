@@ -1,8 +1,8 @@
 import html
+from pathlib import Path
 
 import anthropic
 import plotly.graph_objects as go
-import plotly.express as px
 import streamlit as st
 from datetime import date, datetime
 
@@ -48,224 +48,7 @@ if "recurring_processed" not in st.session_state:
         st.toast(f"Auto-logged {_recurring_count} recurring transaction(s)")
 
 # --- Custom Dark Theme CSS ---
-st.markdown("""
-<style>
-/* ---- Global ---- */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
-
-/* ---- Main container ---- */
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    max-width: 1100px;
-}
-
-/* ---- Rounded cards for metrics ---- */
-[data-testid="stMetric"] {
-    background: linear-gradient(135deg, #1E2235 0%, #252A40 100%);
-    border: 1px solid #2D3350;
-    border-radius: 16px;
-    padding: 20px 24px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-
-[data-testid="stMetricLabel"] {
-    color: #9BA1B8 !important;
-    font-size: 0.85rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-[data-testid="stMetricValue"] {
-    color: #E8EAF0 !important;
-    font-size: 1.8rem;
-    font-weight: 700;
-}
-
-/* ---- Sidebar ---- */
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #13152A 0%, #1A1D34 100%);
-    border-right: 1px solid #2D3350;
-}
-
-[data-testid="stSidebar"] .stTitle {
-    color: #7C5CFC !important;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-}
-
-/* ---- Buttons ---- */
-.stButton > button {
-    border-radius: 12px !important;
-    padding: 0.55rem 1.4rem !important;
-    font-weight: 600 !important;
-    transition: all 0.2s ease !important;
-    border: 1px solid #2D3350 !important;
-}
-
-.stButton > button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(124, 92, 252, 0.3) !important;
-}
-
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #7C5CFC 0%, #6B4CE0 100%) !important;
-    color: white !important;
-    border: none !important;
-}
-
-.stButton > button[kind="secondary"] {
-    background: #1E2235 !important;
-    color: #B0B7D1 !important;
-}
-
-/* ---- Inputs ---- */
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea,
-.stNumberInput > div > div > input,
-.stSelectbox > div > div {
-    border-radius: 12px !important;
-    border: 1px solid #2D3350 !important;
-    background-color: #1A1D29 !important;
-    color: #E8EAF0 !important;
-}
-
-.stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus,
-.stNumberInput > div > div > input:focus {
-    border-color: #7C5CFC !important;
-    box-shadow: 0 0 0 2px rgba(124, 92, 252, 0.2) !important;
-}
-
-/* ---- Chat ---- */
-[data-testid="stChatMessage"] {
-    border-radius: 16px !important;
-    padding: 16px 20px !important;
-    margin-bottom: 12px !important;
-    border: 1px solid #2D3350;
-}
-
-[data-testid="stChatInput"] > div {
-    border-radius: 16px !important;
-    border: 1px solid #2D3350 !important;
-    background-color: #1A1D29 !important;
-}
-
-[data-testid="stChatInput"] textarea {
-    color: #E8EAF0 !important;
-}
-
-/* ---- Expanders (transaction history) ---- */
-[data-testid="stExpander"] {
-    border-radius: 14px !important;
-    border: 1px solid #2D3350 !important;
-    background-color: #1A1D29 !important;
-    margin-bottom: 8px;
-    overflow: hidden;
-}
-
-[data-testid="stExpander"] summary {
-    border-radius: 14px !important;
-    padding: 12px 16px !important;
-}
-
-/* ---- Progress bars ---- */
-.stProgress > div > div {
-    border-radius: 10px !important;
-    height: 12px !important;
-}
-
-.stProgress > div > div > div {
-    border-radius: 10px !important;
-    background: linear-gradient(90deg, #7C5CFC 0%, #A78BFA 100%) !important;
-}
-
-/* ---- Alerts / Info / Warning / Error ---- */
-[data-testid="stAlert"] {
-    border-radius: 14px !important;
-    border: 1px solid #2D3350 !important;
-}
-
-.stInfo, [data-baseweb="notification"][kind="info"] {
-    background-color: #1A2340 !important;
-    border-left: 4px solid #7C5CFC !important;
-    border-radius: 14px !important;
-}
-
-.stSuccess {
-    background-color: #1A3328 !important;
-    border-left: 4px solid #34D399 !important;
-    border-radius: 14px !important;
-}
-
-.stWarning {
-    background-color: #332A1A !important;
-    border-left: 4px solid #FBBF24 !important;
-    border-radius: 14px !important;
-}
-
-.stError {
-    background-color: #331A1A !important;
-    border-left: 4px solid #F87171 !important;
-    border-radius: 14px !important;
-}
-
-/* ---- Dividers ---- */
-hr {
-    border-color: #2D3350 !important;
-    opacity: 0.5;
-}
-
-/* ---- Headings ---- */
-h1 {
-    color: #E8EAF0 !important;
-    font-weight: 700 !important;
-}
-
-h2, h3 {
-    color: #C4C9E0 !important;
-    font-weight: 600 !important;
-}
-
-/* ---- Scrollbar ---- */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-::-webkit-scrollbar-track {
-    background: #0E1117;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #2D3350;
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #7C5CFC;
-}
-
-/* ---- Number input buttons ---- */
-.stNumberInput button {
-    border-radius: 8px !important;
-}
-
-/* ---- Selectbox dropdown ---- */
-[data-baseweb="select"] {
-    border-radius: 12px !important;
-}
-
-[data-baseweb="popover"] {
-    border-radius: 12px !important;
-}
-</style>
-""", unsafe_allow_html=True)
+st.markdown(f"<style>{(Path(__file__).parent / 'style.css').read_text()}</style>", unsafe_allow_html=True)
 
 # --- Session state defaults ---
 defaults = {
@@ -451,6 +234,27 @@ def show_sidebar():
 # ============================================================
 # DASHBOARD
 # ============================================================
+def _insight_is_stale(profile):
+    last = profile.get("last_insight_at")
+    if last is None:
+        return True
+    try:
+        return (datetime.now() - datetime.fromisoformat(last)).days >= 7
+    except (ValueError, TypeError):
+        return True
+
+
+def _fetch_insight(record_time):
+    try:
+        insight = generate_insight()
+        if record_time:
+            update_profile(last_insight_at=datetime.now().isoformat())
+    except Exception:
+        insight = "Couldn't generate an insight right now."
+    st.session_state["last_insight"] = insight
+    return insight
+
+
 def show_dashboard():
     st.title("Dashboard")
     today = date.today()
@@ -534,43 +338,16 @@ def show_dashboard():
 
     profile = get_or_create_profile()
 
-    # Check if we should generate a weekly insight
+    # A new insight is due weekly, on request, or when this session has none yet.
     force = st.session_state.pop("force_insight", False)
-    should_generate = False
-    if summary["total_income"] > 0 or summary["total_expenses"] > 0:
-        if force:
-            should_generate = True
-        else:
-            last_insight = profile.get("last_insight_at")
-            if last_insight is None:
-                should_generate = True
-            else:
-                try:
-                    last_dt = datetime.fromisoformat(last_insight)
-                    if (datetime.now() - last_dt).days >= 7:
-                        should_generate = True
-                except (ValueError, TypeError):
-                    should_generate = True
-
-    if should_generate:
+    has_data = summary["total_income"] > 0 or summary["total_expenses"] > 0
+    insight = st.session_state.get("last_insight")
+    if has_data and (force or _insight_is_stale(profile)):
         with st.spinner("Generating insight..."):
-            try:
-                insight = generate_insight()
-                st.session_state["last_insight"] = insight
-                update_profile(last_insight_at=datetime.now().isoformat())
-            except Exception as e:
-                insight = "Couldn't generate an insight right now."
-                st.session_state["last_insight"] = insight
-    else:
-        insight = st.session_state.get("last_insight", None)
-        if insight is None and (summary["total_income"] > 0 or summary["total_expenses"] > 0):
-            with st.spinner("Generating insight..."):
-                try:
-                    insight = generate_insight()
-                    st.session_state["last_insight"] = insight
-                except Exception:
-                    insight = "Couldn't generate an insight right now."
-                    st.session_state["last_insight"] = insight
+            insight = _fetch_insight(record_time=True)
+    elif has_data and insight is None:
+        with st.spinner("Generating insight..."):
+            insight = _fetch_insight(record_time=False)
 
     if insight:
         safe_insight = html.escape(insight)
@@ -673,16 +450,7 @@ def show_chat():
                 except Exception as e:
                     response_text = f"I couldn't process that — {type(e).__name__}. Try again."
                     st.markdown(response_text)
-                    st.session_state.chat_messages.append(
-                        {"role": "assistant", "content": response_text}
-                    )
-                    st.session_state.conversation_history.append(
-                        {"role": "user", "content": user_input}
-                    )
-                    st.session_state.conversation_history.append(
-                        {"role": "assistant", "content": response_text}
-                    )
-                    trim_conversation_history()
+                    _append_and_trim(user_input, response_text)
                     st.rerun()
                     return
 
