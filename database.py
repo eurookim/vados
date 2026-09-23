@@ -227,6 +227,7 @@ def init_db():
     # Migrate existing tables with new columns
     _safe_add_column("transactions", "currency", "TEXT NOT NULL DEFAULT 'USD'")
     _safe_add_column("user_profile", "default_currency", "TEXT NOT NULL DEFAULT 'USD'")
+    _safe_add_column("user_profile", "last_insight", "TEXT")
 
 
 def get_or_create_profile():
@@ -239,8 +240,10 @@ def get_or_create_profile():
     return row
 
 
-def update_profile(goals=None, onboarding_complete=None, last_insight_at=None):
+def update_profile(goals=None, onboarding_complete=None, last_insight_at=None, last_insight=None):
     stmts = []
+    if last_insight is not None:
+        stmts.append({"sql": "UPDATE user_profile SET last_insight = ? WHERE id = 1", "args": [last_insight]})
     if goals is not None:
         stmts.append({"sql": "UPDATE user_profile SET goals = ? WHERE id = 1", "args": [goals]})
     if onboarding_complete is not None:

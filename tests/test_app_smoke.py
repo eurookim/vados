@@ -3,7 +3,7 @@
 The Anthropic client is replaced with a fake, so no API calls are made.
 """
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -78,6 +78,42 @@ def test_dashboard_insight_failure_is_handled(seeded, fake_ai):
     fake_ai.error = RuntimeError("boom")
     at = run_page("Dashboard")
     assert "generate an insight right now" in all_markdown(at)
+
+
+def test_insight_is_saved_and_reused_by_later_sessions(seeded, fake_ai):
+    run_page("Dashboard")
+    assert len(fake_ai.requests) == 1
+    assert seeded.get_or_create_profile()["last_insight"] == "Fake insight."
+
+    fake_ai.text = "Should not be requested."
+    at = run_page("Dashboard")  # a brand-new session
+    assert len(fake_ai.requests) == 1
+    assert "Fake insight." in all_markdown(at)
+
+
+def test_week_old_insight_is_regenerated(seeded, fake_ai):
+    old = (datetime.now() - timedelta(days=8)).isoformat()
+    seeded.update_profile(last_insight="Old news.", last_insight_at=old)
+    fake_ai.text = "Fresh insight."
+    at = run_page("Dashboard")
+    assert "Fresh insight." in all_markdown(at)
+    assert seeded.get_or_create_profile()["last_insight"] == "Fresh insight."
+
+
+def test_new_insight_button_forces_regeneration(seeded, fake_ai):
+    at = run_page("Dashboard")
+    fake_ai.text = "Second insight."
+    at.button(key="refresh_insight").click().run()
+    assert "Second insight." in all_markdown(at)
+    assert len(fake_ai.requests) == 2
+
+
+def test_failed_insight_is_not_saved_or_retried_in_session(seeded, fake_ai):
+    fake_ai.error = RuntimeError("boom")
+    at = run_page("Dashboard")
+    at.run()  # any rerun, e.g. clicking a widget
+    assert len(fake_ai.requests) == 1
+    assert seeded.get_or_create_profile()["last_insight"] is None
 
 
 def test_trends_renders_all_three_charts(seeded):

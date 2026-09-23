@@ -26,14 +26,15 @@ def _insight_is_stale(profile):
         return True
 
 
-def _fetch_insight(record_time):
+def _fetch_insight():
+    """Generate a new insight and save it. On failure, show a fallback and
+    don't retry until the next session or an explicit refresh."""
     try:
         insight = generate_insight()
-        if record_time:
-            update_profile(last_insight_at=datetime.now().isoformat())
     except Exception:
-        insight = "Couldn't generate an insight right now."
-    st.session_state["last_insight"] = insight
+        st.session_state["insight_failed"] = True
+        return "Couldn't generate an insight right now."
+    update_profile(last_insight=insight, last_insight_at=datetime.now().isoformat())
     return insight
 
 
@@ -120,16 +121,17 @@ def show_dashboard():
 
     profile = get_or_create_profile()
 
-    # A new insight is due weekly, on request, or when this session has none yet.
+    # The saved insight is reused until it's a week old or the user asks for a new one.
     force = st.session_state.pop("force_insight", False)
     has_data = summary["total_income"] > 0 or summary["total_expenses"] > 0
-    insight = st.session_state.get("last_insight")
-    if has_data and (force or _insight_is_stale(profile)):
+    insight = profile.get("last_insight")
+    needs_new = force or insight is None or _insight_is_stale(profile)
+    if has_data and needs_new and (force or not st.session_state.get("insight_failed")):
+        st.session_state.pop("insight_failed", None)
         with st.spinner("Generating insight..."):
-            insight = _fetch_insight(record_time=True)
-    elif has_data and insight is None:
-        with st.spinner("Generating insight..."):
-            insight = _fetch_insight(record_time=False)
+            insight = _fetch_insight()
+    elif st.session_state.get("insight_failed"):
+        insight = "Couldn't generate an insight right now."
 
     if insight:
         safe_insight = html.escape(insight)
