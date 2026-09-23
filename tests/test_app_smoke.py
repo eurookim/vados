@@ -4,32 +4,11 @@ The Anthropic client is replaced with a fake, so no API calls are made.
 """
 import os
 from datetime import date, timedelta
-from types import SimpleNamespace
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
-import ai
-
 APP = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app.py")
-
-
-class FakeClient:
-    def __init__(self, text="Fake insight.", error=None):
-        self.text, self.error = text, error
-        self.messages = self
-
-    def create(self, **kwargs):
-        if self.error:
-            raise self.error
-        return SimpleNamespace(content=[SimpleNamespace(type="text", text=self.text)])
-
-
-@pytest.fixture
-def fake_ai(monkeypatch):
-    client = FakeClient()
-    monkeypatch.setattr(ai, "get_client", lambda: client)
-    return client
 
 
 @pytest.fixture

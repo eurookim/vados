@@ -299,7 +299,8 @@ Respond with ONLY a JSON block:
       "amount": <number>,
       "category": "<{'|'.join(CATEGORIES)}>",
       "description": "<short label>",
-      "date": "<YYYY-MM-DD, use first of last month if not specified>"
+      "date": "<YYYY-MM-DD, use first of last month if not specified>",
+      "currency": "<3-letter code, one of {', '.join(SUPPORTED_CURRENCIES)}; the user's default currency if not specified>"
     }}
   ]
 }}
