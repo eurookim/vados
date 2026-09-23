@@ -141,7 +141,7 @@ When you identify a transaction, respond with ONLY a JSON block in this exact fo
     {
       "type": "income" or "expense",
       "amount": <number, positive, no currency symbol>,
-      "category": "<one of: Food, Transport, Entertainment, Shopping, Subscriptions, Health, Housing, Education, Personal, Income>",
+      "category": "<one of: {categories}>",
       "description": "<short clean label>",
       "date": "<YYYY-MM-DD, default to today if not specified>",
       "currency": "<3-letter currency code, default to user's default currency if not specified>"
@@ -156,13 +156,13 @@ If the user mentions multiple transactions in one message, include all of them i
 IMPORTANT date handling: Today's date is provided in the context. Resolve relative dates like "yesterday", "last Friday", "two days ago" into absolute YYYY-MM-DD dates.
 
 IMPORTANT category rules:
-- Use ONLY these categories: Food, Transport, Entertainment, Shopping, Subscriptions, Health, Housing, Education, Personal, Income
+- Use ONLY these categories: {categories}
 - For income transactions, always use category "Income" and type "income"
 - Pick the single best-fit category
 
 IMPORTANT currency rules:
 - The user's default currency is provided in the context. Use it unless the user specifies otherwise.
-- Supported currencies: USD, EUR, GBP, JPY, KRW, CAD, AUD, INR
+- Supported currencies: {currencies}
 - If the user mentions a currency symbol or code (e.g. "50 euros", "£30", "¥5000"), use the appropriate currency code.
 
 FOR Q&A:
@@ -181,7 +181,7 @@ If the user says something like "change that to entertainment" or "that should b
 
 FINANCIAL CONTEXT:
 {context}
-"""
+""".replace("{categories}", ", ".join(CATEGORIES)).replace("{currencies}", ", ".join(SUPPORTED_CURRENCIES))
 
 
 def chat(user_message, conversation_history, pending_transaction=None):
@@ -297,7 +297,7 @@ Respond with ONLY a JSON block:
     {{
       "type": "income" or "expense",
       "amount": <number>,
-      "category": "<Food|Transport|Entertainment|Shopping|Subscriptions|Health|Housing|Education|Personal|Income>",
+      "category": "<{'|'.join(CATEGORIES)}>",
       "description": "<short label>",
       "date": "<YYYY-MM-DD, use first of last month if not specified>"
     }}
