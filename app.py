@@ -292,6 +292,25 @@ def trim_conversation_history():
         st.session_state.chat_messages = msgs[-MAX_CHAT_DISPLAY:]
 
 
+def _save_parsed_history(text):
+    """Parse free-text spending history and save the valid transactions.
+    Returns the number saved, or None if the text couldn't be parsed."""
+    result = parse_onboarding_history(text)
+    if not result or "transactions" not in result:
+        return None
+    count = 0
+    for txn in result["transactions"]:
+        valid, _ = validate_transaction(txn)
+        if valid:
+            add_transaction(
+                txn["date"], txn["type"], txn["amount"],
+                txn["category"], txn["description"],
+                source="onboarding", currency=txn["currency"],
+            )
+            count += 1
+    return count
+
+
 # ============================================================
 # ONBOARDING
 # ============================================================
@@ -326,12 +345,13 @@ def show_onboarding():
     elif step == 1:
         st.subheader("Step 2: Budget Targets (Optional)")
         st.markdown("Set monthly spending limits for each category. Leave blank to skip.")
+        cur_symbol = SUPPORTED_CURRENCIES.get(get_default_currency(), "$")
         cols = st.columns(3)
         budgets = {}
         for i, cat in enumerate(EXPENSE_CATEGORIES):
             with cols[i % 3]:
                 val = st.number_input(
-                    f"{cat} ($)", min_value=0.0, value=0.0, step=10.0, key=f"budget_{cat}"
+                    f"{cat} ({cur_symbol})", min_value=0.0, value=0.0, step=10.0, key=f"budget_{cat}"
                 )
                 if val > 0:
                     budgets[cat] = val
@@ -364,21 +384,11 @@ def show_onboarding():
             if st.button("Parse & Save", key="history_save"):
                 if history_text.strip():
                     with st.spinner("Parsing your spending history..."):
-                        result = parse_onboarding_history(history_text)
-                    if result and "transactions" in result:
-                        count = 0
-                        for txn in result["transactions"]:
-                            valid, err = validate_transaction(txn)
-                            if valid:
-                                add_transaction(
-                                    txn["date"], txn["type"], txn["amount"],
-                                    txn["category"], txn["description"], source="onboarding"
-                                )
-                                count += 1
-                        st.success(f"Saved {count} historical transaction(s)!")
-                    else:
+                        count = _save_parsed_history(history_text)
+                    if count is None:
                         st.error("Couldn't parse that. Try rephrasing or click Skip.")
                         return
+                    st.success(f"Saved {count} historical transaction(s)!")
                 st.session_state.onboarding_step = 3
                 st.rerun()
 
@@ -390,7 +400,8 @@ def show_onboarding():
         if profile.get("goals"):
             st.markdown(f"**Goals:** {profile['goals']}")
         if targets:
-            st.markdown("**Budget targets:** " + ", ".join(f"{c}: ${v:.0f}" for c, v in targets.items()))
+            cur = get_default_currency()
+            st.markdown("**Budget targets:** " + ", ".join(f"{c}: {format_currency(v, cur)}" for c, v in targets.items()))
         else:
             st.markdown("**Budget targets:** None set (you can add them later in Settings)")
 
@@ -626,7 +637,6 @@ def show_chat():
         for i, ex in enumerate(examples):
             with cols[i % 2]:
                 if st.button(f'"{ex}"', key=f"example_{i}", use_container_width=True):
-                    st.session_state.chat_messages.append({"role": "user", "content": ex})
                     st.session_state["_run_example"] = ex
                     st.rerun()
 
@@ -1001,21 +1011,12 @@ def show_settings():
     if st.button("Parse & Save Historical Data"):
         if history_text.strip():
             with st.spinner("Parsing..."):
-                result = parse_onboarding_history(history_text)
-            if result and "transactions" in result:
-                count = 0
-                for txn in result["transactions"]:
-                    valid, err = validate_transaction(txn)
-                    if valid:
-                        add_transaction(
-                            txn["date"], txn["type"], txn["amount"],
-                            txn["category"], txn["description"], source="onboarding"
-                        )
-                        count += 1
+                count = _save_parsed_history(history_text)
+            if count is None:
+                st.error("Couldn't parse that. Try rephrasing.")
+            else:
                 st.success(f"Saved {count} historical transactions!")
                 st.rerun()
-            else:
-                st.error("Couldn't parse that. Try rephrasing.")
 
 
 # ============================================================
@@ -1143,6 +1144,7 @@ def show_trends():
                 hovertemplate="%{x}<br>Spent: " + symbol + "%{y:,.0f} (%{text})<extra></extra>",
             ))
             _style_chart(fig4, barmode="group", yaxis_title=f"Amount ({cur})", height=380, bargap=0.25)
+            st.plotly_chart(fig4, use_container_width=True)
 
 
 # ============================================================
