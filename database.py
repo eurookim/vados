@@ -1,5 +1,7 @@
+import calendar
 import os
 import sqlite3
+from contextlib import contextmanager
 from datetime import date, timedelta
 
 import requests
@@ -120,64 +122,58 @@ def _turso_execute(statements):
     return results
 
 
+@contextmanager
+def _sqlite():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _turso_rows(sql, params):
+    results = _turso_execute([{"sql": sql, "args": list(params) if params else []}])
+    return results[0]["rows"] if results else []
+
+
 def _execute(sql, params=None):
     """Execute a single write statement."""
     if _use_turso():
-        _turso_execute([{"sql": sql, "args": list(params) if params else []}])
-    else:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        try:
-            conn.execute(sql, params or ())
-            conn.commit()
-        finally:
-            conn.close()
+        _turso_rows(sql, params)
+        return
+    with _sqlite() as conn:
+        conn.execute(sql, params or ())
+        conn.commit()
 
 
 def _fetchall(sql, params=None):
     """Execute a query and return all rows as list of dicts."""
     if _use_turso():
-        results = _turso_execute([{"sql": sql, "args": list(params) if params else []}])
-        return results[0]["rows"] if results else []
-    else:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        try:
-            rows = conn.execute(sql, params or ()).fetchall()
-            return [dict(r) for r in rows]
-        finally:
-            conn.close()
+        return _turso_rows(sql, params)
+    with _sqlite() as conn:
+        return [dict(r) for r in conn.execute(sql, params or ()).fetchall()]
 
 
 def _fetchone(sql, params=None):
     """Execute a query and return one row as dict or None."""
     if _use_turso():
-        results = _turso_execute([{"sql": sql, "args": list(params) if params else []}])
-        rows = results[0]["rows"] if results else []
+        rows = _turso_rows(sql, params)
         return rows[0] if rows else None
-    else:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        try:
-            row = conn.execute(sql, params or ()).fetchone()
-            return dict(row) if row else None
-        finally:
-            conn.close()
+    with _sqlite() as conn:
+        row = conn.execute(sql, params or ()).fetchone()
+        return dict(row) if row else None
 
 
 def _execute_many(statements):
     """Execute multiple statements in one call."""
     if _use_turso():
         _turso_execute(statements)
-    else:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        try:
-            for stmt in statements:
-                conn.execute(stmt["sql"], stmt.get("args", []))
-            conn.commit()
-        finally:
-            conn.close()
+        return
+    with _sqlite() as conn:
+        for stmt in statements:
+            conn.execute(stmt["sql"], stmt.get("args", []))
+        conn.commit()
 
 
 # ============================================================
@@ -256,22 +252,16 @@ def update_profile(goals=None, onboarding_complete=None, last_insight_at=None):
 
 
 def add_transaction(date_str, txn_type, amount, category, description, source="manual", currency="USD"):
-    resolved = resolve_category(category)
-    if resolved is None:
-        raise ValueError(f"Unknown category: {category}")
     _execute(
         "INSERT INTO transactions (date, type, amount, category, description, source, currency) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (date_str, txn_type, abs(amount), resolved, description, source, currency),
+        (date_str, txn_type, abs(amount), _require_category(category), description, source, currency),
     )
 
 
 def update_transaction(txn_id, category=None, description=None, amount=None):
     stmts = []
     if category is not None:
-        resolved = resolve_category(category)
-        if resolved is None:
-            raise ValueError(f"Unknown category: {category}")
-        stmts.append({"sql": "UPDATE transactions SET category = ? WHERE id = ?", "args": [resolved, txn_id]})
+        stmts.append({"sql": "UPDATE transactions SET category = ? WHERE id = ?", "args": [_require_category(category), txn_id]})
     if description is not None:
         stmts.append({"sql": "UPDATE transactions SET description = ? WHERE id = ?", "args": [description, txn_id]})
     if amount is not None:
@@ -359,6 +349,13 @@ def resolve_category(category):
     return None
 
 
+def _require_category(category):
+    resolved = resolve_category(category)
+    if resolved is None:
+        raise ValueError(f"Unknown category: {category}")
+    return resolved
+
+
 def get_last_transaction():
     return _fetchone("SELECT * FROM transactions ORDER BY id DESC LIMIT 1")
 
@@ -388,13 +385,10 @@ def format_currency(amount, currency="USD"):
 # ============================================================
 
 def add_recurring_transaction(txn_type, amount, category, description, frequency, next_due_date, currency="USD"):
-    resolved = resolve_category(category)
-    if resolved is None:
-        raise ValueError(f"Unknown category: {category}")
     _execute(
         "INSERT INTO recurring_transactions (type, amount, category, description, currency, frequency, next_due_date) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (txn_type, abs(amount), resolved, description, currency, frequency, next_due_date),
+        (txn_type, abs(amount), _require_category(category), description, currency, frequency, next_due_date),
     )
 
 
@@ -431,13 +425,8 @@ def _advance_date(date_str, frequency):
     elif frequency == "biweekly":
         return (d + timedelta(days=14)).isoformat()
     else:  # monthly
-        month = d.month + 1
-        year = d.year
-        if month > 12:
-            month = 1
-            year += 1
-        day = min(d.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28,
-                          31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+        year, month = (d.year + 1, 1) if d.month == 12 else (d.year, d.month + 1)
+        day = min(d.day, calendar.monthrange(year, month)[1])
         return date(year, month, day).isoformat()
 
 
