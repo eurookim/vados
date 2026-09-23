@@ -99,7 +99,7 @@ def build_spending_context():
             lines.append(f"  {cat}: {format_currency(spent, default_currency)} / {format_currency(limit, default_currency)}")
 
     if recent:
-        lines.append(f"\nMost recent transactions (up to 15):")
+        lines.append("\nMost recent transactions (up to 15):")
         for t in recent:
             sign = "+" if t["type"] == "income" else "-"
             cur = t.get("currency", default_currency)

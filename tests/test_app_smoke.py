@@ -78,6 +78,14 @@ def test_every_page_renders(seeded, page, title):
     assert run_page(page).title[0].value == title
 
 
+def test_sidebar_navigates_between_pages(seeded):
+    at = run_page("Dashboard")
+    at.button(key="nav_Trends").click().run()
+    assert not at.exception
+    assert at.title[0].value == "Spending Trends"
+    assert at.button(key="nav_Trends").proto.type == "primary"
+
+
 def test_dashboard_metrics_and_insight(seeded):
     at = run_page("Dashboard")
     assert [m.value for m in at.metric] == ["€3,000.00", "€1,320.00"]
