@@ -92,7 +92,12 @@ def apply_stubs():
 # ----------------------------------------------------------------------
 
 def cache_key(utterance):
-    payload = f"{PINNED_TODAY.isoformat()}|{ai.MODEL}|{utterance}"
+    # Everything sent to the model belongs in the key, so editing the prompt or
+    # the fixed context can't silently reuse answers to the old one.
+    payload = (
+        f"{PINNED_TODAY.isoformat()}|{ai.MODEL}|{ai.SYSTEM_PROMPT}|"
+        f"{FIXED_SPENDING_CONTEXT}|{utterance}"
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
