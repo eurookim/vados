@@ -65,12 +65,12 @@ def show_dashboard():
     c1.metric("Total Income", format_currency(summary['total_income'], cur))
     c2.metric("Total Spent", format_currency(summary['total_expenses'], cur))
     net = summary["net_balance"]
-    net_color = "#34D399" if net >= 0 else "#F87171"
+    net_color = "var(--positive)" if net >= 0 else "var(--negative)"
     net_display = format_currency(net, cur)
     c3.markdown(f"""
-    <div style="background: linear-gradient(135deg, #1E2235, #252A40); border: 1px solid #2D3350;
+    <div style="background: linear-gradient(135deg, var(--card), var(--card-end)); border: 1px solid var(--border);
         border-radius: 16px; padding: 20px 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
-        <p style="color: #9BA1B8; font-size: 0.85rem; font-weight: 500; text-transform: uppercase;
+        <p style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; text-transform: uppercase;
             letter-spacing: 0.05em; margin: 0;">Net Balance</p>
         <p style="color: {net_color}; font-size: 1.8rem; font-weight: 700; margin: 0;">
             {net_display}</p>
@@ -134,12 +134,12 @@ def show_dashboard():
     if insight:
         safe_insight = html.escape(insight)
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #1A2340, #1E2850); border: 1px solid #3B4580;
-            border-left: 4px solid #7C5CFC; border-radius: 14px; padding: 20px 24px;
+        <div style="background: linear-gradient(135deg, var(--info-bg), #1E2850); border: 1px solid var(--border-accent);
+            border-left: 4px solid var(--accent); border-radius: 14px; padding: 20px 24px;
             box-shadow: 0 4px 20px rgba(124, 92, 252, 0.1);">
-            <p style="color: #9BA1B8; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+            <p style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
                 letter-spacing: 0.08em; margin: 0 0 8px 0;">🧠 AI Insight</p>
-            <p style="color: #E8EAF0; font-size: 1rem; line-height: 1.5; margin: 0;">{safe_insight}</p>
+            <p style="color: var(--text-primary); font-size: 1rem; line-height: 1.5; margin: 0;">{safe_insight}</p>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -154,16 +154,16 @@ def show_dashboard():
             rec_cur = rec.get("currency", cur)
             freq_label = rec["frequency"].capitalize()
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #1E2235, #252A40); border: 1px solid #2D3350;
+            <div style="background: linear-gradient(135deg, var(--card), var(--card-end)); border: 1px solid var(--border);
                 border-radius: 12px; padding: 14px 18px; margin-bottom: 8px;
                 display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <span style="color: #E8EAF0; font-weight: 600;">{html.escape(rec['description'])}</span>
-                    <span style="color: #6B7094; font-size: 0.85rem; margin-left: 8px;">{freq_label} &middot; {rec['category']}</span>
+                    <span style="color: var(--text-primary); font-weight: 600;">{html.escape(rec['description'])}</span>
+                    <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 8px;">{freq_label} &middot; {rec['category']}</span>
                 </div>
                 <div>
-                    <span style="color: #A78BFA; font-weight: 700;">{format_currency(rec['amount'], rec_cur)}</span>
-                    <span style="color: #6B7094; font-size: 0.8rem; margin-left: 8px;">Due {rec['next_due_date']}</span>
+                    <span style="color: var(--accent-light); font-weight: 700;">{format_currency(rec['amount'], rec_cur)}</span>
+                    <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 8px;">Due {rec['next_due_date']}</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)

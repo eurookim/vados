@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import streamlit as st
 
 from database import get_or_create_profile, init_db, process_due_recurring_transactions
@@ -9,6 +7,7 @@ from views.history import show_history
 from views.onboarding import show_onboarding
 from views.settings import show_settings
 from views.sidebar import show_sidebar
+from views.theme import apply_theme
 from views.trends import show_trends
 
 st.set_page_config(page_title="Vados", page_icon="💰", layout="wide")
@@ -22,8 +21,7 @@ if "recurring_processed" not in st.session_state:
     if _recurring_count > 0:
         st.toast(f"Auto-logged {_recurring_count} recurring transaction(s)")
 
-# --- Custom Dark Theme CSS ---
-st.markdown(f"<style>{(Path(__file__).parent / 'style.css').read_text()}</style>", unsafe_allow_html=True)
+apply_theme()
 
 # --- Session state defaults ---
 defaults = {

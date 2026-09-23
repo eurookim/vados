@@ -21,11 +21,11 @@ def show_onboarding():
     st.markdown("""
     <div style="text-align:center; padding: 2rem 0 1rem 0;">
         <span style="font-size: 3rem;">💰</span>
-        <h1 style="margin: 0.5rem 0 0.2rem 0; font-size: 2.4rem; background: linear-gradient(135deg, #7C5CFC, #A78BFA);
+        <h1 style="margin: 0.5rem 0 0.2rem 0; font-size: 2.4rem; background: linear-gradient(135deg, var(--accent), var(--accent-light));
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">
             Welcome to Vados
         </h1>
-        <p style="color: #6B7094; font-size: 1rem;">Let's set up your personal finance assistant.</p>
+        <p style="color: var(--text-muted); font-size: 1rem;">Let's set up your personal finance assistant.</p>
     </div>
     """, unsafe_allow_html=True)
     st.progress((step + 1) / 4)

@@ -33,9 +33,9 @@ def show_chat():
     # Empty state with example prompts
     if not st.session_state.chat_messages:
         st.markdown("""
-        <div style="text-align: center; padding: 2rem 1rem; color: #6B7094;">
+        <div style="text-align: center; padding: 2rem 1rem; color: var(--text-muted);">
             <p style="font-size: 2rem; margin-bottom: 0.5rem;">💬</p>
-            <p style="font-size: 1.1rem; color: #9BA1B8; margin-bottom: 1.5rem;">
+            <p style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
                 Start by logging a transaction or asking a question
             </p>
         </div>

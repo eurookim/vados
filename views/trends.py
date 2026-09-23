@@ -5,6 +5,21 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from database import SUPPORTED_CURRENCIES, get_budget_targets, get_default_currency, get_monthly_summaries
+from views.theme import (
+    ACCENT,
+    BORDER,
+    BORDER_ACCENT,
+    CARD,
+    NEGATIVE,
+    NEGATIVE_BG,
+    POSITIVE,
+    POSITIVE_BG,
+    TEXT_HEADING,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    WARNING,
+)
 
 
 def _style_chart(fig, **overrides):
@@ -12,25 +27,25 @@ def _style_chart(fig, **overrides):
     layout = dict(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#C4C9E0", family="Inter", size=13),
+        font=dict(color=TEXT_HEADING, family="Inter", size=13),
         xaxis=dict(
             gridcolor="rgba(45,51,80,0.5)", showgrid=False,
-            tickfont=dict(color="#9BA1B8", size=12),
-            linecolor="#2D3350", zeroline=False,
+            tickfont=dict(color=TEXT_SECONDARY, size=12),
+            linecolor=BORDER, zeroline=False,
         ),
         yaxis=dict(
             gridcolor="rgba(45,51,80,0.4)", showgrid=True, griddash="dot",
-            tickfont=dict(color="#9BA1B8", size=12),
-            linecolor="#2D3350", zeroline=False,
+            tickfont=dict(color=TEXT_SECONDARY, size=12),
+            linecolor=BORDER, zeroline=False,
         ),
         margin=dict(l=50, r=30, t=50, b=50),
         legend=dict(
-            bgcolor="rgba(0,0,0,0)", font=dict(color="#9BA1B8", size=12),
+            bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT_SECONDARY, size=12),
             orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
         ),
         hoverlabel=dict(
-            bgcolor="#1E2235", bordercolor="#7C5CFC",
-            font=dict(color="#E8EAF0", family="Inter", size=13),
+            bgcolor=CARD, bordercolor=ACCENT,
+            font=dict(color=TEXT_PRIMARY, family="Inter", size=13),
         ),
         bargap=0.3,
     )
@@ -56,18 +71,18 @@ def show_trends():
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(
         x=month_labels, y=incomes, name="Income",
-        line=dict(color="#34D399", width=3, shape="spline"),
+        line=dict(color=POSITIVE, width=3, shape="spline"),
         mode="lines+markers",
-        marker=dict(size=9, color="#34D399", line=dict(width=2, color="#1A3328")),
+        marker=dict(size=9, color=POSITIVE, line=dict(width=2, color=POSITIVE_BG)),
         fill="tozeroy",
         fillcolor="rgba(52,211,153,0.08)",
         hovertemplate="%{x}<br>Income: " + symbol + "%{y:,.0f}<extra></extra>",
     ))
     fig2.add_trace(go.Scatter(
         x=month_labels, y=expenses, name="Expenses",
-        line=dict(color="#F87171", width=3, shape="spline"),
+        line=dict(color=NEGATIVE, width=3, shape="spline"),
         mode="lines+markers",
-        marker=dict(size=9, color="#F87171", line=dict(width=2, color="#331A1A")),
+        marker=dict(size=9, color=NEGATIVE, line=dict(width=2, color=NEGATIVE_BG)),
         fill="tozeroy",
         fillcolor="rgba(248,113,113,0.08)",
         hovertemplate="%{x}<br>Expenses: " + symbol + "%{y:,.0f}<extra></extra>",
@@ -78,17 +93,17 @@ def show_trends():
     # --- Chart 3: Net Savings ---
     st.subheader("Net Savings")
     net_vals = [i - e for i, e in zip(incomes, expenses)]
-    bar_colors = ["#34D399" if n >= 0 else "#F87171" for n in net_vals]
+    bar_colors = [POSITIVE if n >= 0 else NEGATIVE for n in net_vals]
     fig3 = go.Figure(go.Bar(
         x=month_labels, y=net_vals,
         marker=dict(color=bar_colors, cornerradius=6, line=dict(width=0)),
         text=[f"{symbol}{abs(n):,.0f}" for n in net_vals],
         textposition="outside",
-        textfont=dict(color="#9BA1B8", size=12, family="Inter"),
+        textfont=dict(color=TEXT_SECONDARY, size=12, family="Inter"),
         hovertemplate="%{x}<br>Net: " + symbol + "%{y:,.0f}<extra></extra>",
     ))
     # Add zero line
-    fig3.add_hline(y=0, line_dash="dot", line_color="#6B7094", line_width=1)
+    fig3.add_hline(y=0, line_dash="dot", line_color=TEXT_MUTED, line_width=1)
     _style_chart(fig3, yaxis_title=f"Net ({cur})", height=340)
     st.plotly_chart(fig3, use_container_width=True)
 
@@ -102,13 +117,13 @@ def show_trends():
             budget_vals = [targets[c] for c in budget_cats]
             pct_vals = [a / b * 100 if b > 0 else 0 for a, b in zip(actual_vals, budget_vals)]
             bar_colors_budget = [
-                "#F87171" if p >= 100 else "#FBBF24" if p >= 80 else "#34D399"
+                NEGATIVE if p >= 100 else WARNING if p >= 80 else POSITIVE
                 for p in pct_vals
             ]
             fig4 = go.Figure()
             fig4.add_trace(go.Bar(
                 x=budget_cats, y=budget_vals, name="Budget",
-                marker=dict(color="rgba(45,51,80,0.6)", cornerradius=6, line=dict(width=1, color="#3B4580")),
+                marker=dict(color="rgba(45,51,80,0.6)", cornerradius=6, line=dict(width=1, color=BORDER_ACCENT)),
                 hovertemplate="%{x}<br>Budget: " + symbol + "%{y:,.0f}<extra></extra>",
             ))
             fig4.add_trace(go.Bar(
@@ -116,7 +131,7 @@ def show_trends():
                 marker=dict(color=bar_colors_budget, cornerradius=6, line=dict(width=0)),
                 text=[f"{p:.0f}%" for p in pct_vals],
                 textposition="outside",
-                textfont=dict(color="#9BA1B8", size=12, family="Inter"),
+                textfont=dict(color=TEXT_SECONDARY, size=12, family="Inter"),
                 hovertemplate="%{x}<br>Spent: " + symbol + "%{y:,.0f} (%{text})<extra></extra>",
             ))
             _style_chart(fig4, barmode="group", yaxis_title=f"Amount ({cur})", height=380, bargap=0.25)

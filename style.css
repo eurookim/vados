@@ -14,15 +14,15 @@ html, body, [class*="css"] {
 
 /* ---- Rounded cards for metrics ---- */
 [data-testid="stMetric"] {
-    background: linear-gradient(135deg, #1E2235 0%, #252A40 100%);
-    border: 1px solid #2D3350;
+    background: linear-gradient(135deg, var(--card) 0%, var(--card-end) 100%);
+    border: 1px solid var(--border);
     border-radius: 16px;
     padding: 20px 24px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 [data-testid="stMetricLabel"] {
-    color: #9BA1B8 !important;
+    color: var(--text-secondary) !important;
     font-size: 0.85rem;
     font-weight: 500;
     text-transform: uppercase;
@@ -30,7 +30,7 @@ html, body, [class*="css"] {
 }
 
 [data-testid="stMetricValue"] {
-    color: #E8EAF0 !important;
+    color: var(--text-primary) !important;
     font-size: 1.8rem;
     font-weight: 700;
 }
@@ -38,11 +38,11 @@ html, body, [class*="css"] {
 /* ---- Sidebar ---- */
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #13152A 0%, #1A1D34 100%);
-    border-right: 1px solid #2D3350;
+    border-right: 1px solid var(--border);
 }
 
 [data-testid="stSidebar"] .stTitle {
-    color: #7C5CFC !important;
+    color: var(--accent) !important;
     font-weight: 700;
     letter-spacing: 0.02em;
 }
@@ -53,7 +53,7 @@ html, body, [class*="css"] {
     padding: 0.55rem 1.4rem !important;
     font-weight: 600 !important;
     transition: all 0.2s ease !important;
-    border: 1px solid #2D3350 !important;
+    border: 1px solid var(--border) !important;
 }
 
 .stButton > button:hover {
@@ -62,13 +62,13 @@ html, body, [class*="css"] {
 }
 
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #7C5CFC 0%, #6B4CE0 100%) !important;
+    background: linear-gradient(135deg, var(--accent) 0%, #6B4CE0 100%) !important;
     color: white !important;
     border: none !important;
 }
 
 .stButton > button[kind="secondary"] {
-    background: #1E2235 !important;
+    background: var(--card) !important;
     color: #B0B7D1 !important;
 }
 
@@ -78,15 +78,15 @@ html, body, [class*="css"] {
 .stNumberInput > div > div > input,
 .stSelectbox > div > div {
     border-radius: 12px !important;
-    border: 1px solid #2D3350 !important;
-    background-color: #1A1D29 !important;
-    color: #E8EAF0 !important;
+    border: 1px solid var(--border) !important;
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 .stTextInput > div > div > input:focus,
 .stTextArea > div > div > textarea:focus,
 .stNumberInput > div > div > input:focus {
-    border-color: #7C5CFC !important;
+    border-color: var(--accent) !important;
     box-shadow: 0 0 0 2px rgba(124, 92, 252, 0.2) !important;
 }
 
@@ -95,24 +95,24 @@ html, body, [class*="css"] {
     border-radius: 16px !important;
     padding: 16px 20px !important;
     margin-bottom: 12px !important;
-    border: 1px solid #2D3350;
+    border: 1px solid var(--border);
 }
 
 [data-testid="stChatInput"] > div {
     border-radius: 16px !important;
-    border: 1px solid #2D3350 !important;
-    background-color: #1A1D29 !important;
+    border: 1px solid var(--border) !important;
+    background-color: var(--input-bg) !important;
 }
 
 [data-testid="stChatInput"] textarea {
-    color: #E8EAF0 !important;
+    color: var(--text-primary) !important;
 }
 
 /* ---- Expanders (transaction history) ---- */
 [data-testid="stExpander"] {
     border-radius: 14px !important;
-    border: 1px solid #2D3350 !important;
-    background-color: #1A1D29 !important;
+    border: 1px solid var(--border) !important;
+    background-color: var(--input-bg) !important;
     margin-bottom: 8px;
     overflow: hidden;
 }
@@ -130,53 +130,53 @@ html, body, [class*="css"] {
 
 .stProgress > div > div > div {
     border-radius: 10px !important;
-    background: linear-gradient(90deg, #7C5CFC 0%, #A78BFA 100%) !important;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%) !important;
 }
 
 /* ---- Alerts / Info / Warning / Error ---- */
 [data-testid="stAlert"] {
     border-radius: 14px !important;
-    border: 1px solid #2D3350 !important;
+    border: 1px solid var(--border) !important;
 }
 
 .stInfo, [data-baseweb="notification"][kind="info"] {
-    background-color: #1A2340 !important;
-    border-left: 4px solid #7C5CFC !important;
+    background-color: var(--info-bg) !important;
+    border-left: 4px solid var(--accent) !important;
     border-radius: 14px !important;
 }
 
 .stSuccess {
-    background-color: #1A3328 !important;
-    border-left: 4px solid #34D399 !important;
+    background-color: var(--positive-bg) !important;
+    border-left: 4px solid var(--positive) !important;
     border-radius: 14px !important;
 }
 
 .stWarning {
     background-color: #332A1A !important;
-    border-left: 4px solid #FBBF24 !important;
+    border-left: 4px solid var(--warning) !important;
     border-radius: 14px !important;
 }
 
 .stError {
-    background-color: #331A1A !important;
-    border-left: 4px solid #F87171 !important;
+    background-color: var(--negative-bg) !important;
+    border-left: 4px solid var(--negative) !important;
     border-radius: 14px !important;
 }
 
 /* ---- Dividers ---- */
 hr {
-    border-color: #2D3350 !important;
+    border-color: var(--border) !important;
     opacity: 0.5;
 }
 
 /* ---- Headings ---- */
 h1 {
-    color: #E8EAF0 !important;
+    color: var(--text-primary) !important;
     font-weight: 700 !important;
 }
 
 h2, h3 {
-    color: #C4C9E0 !important;
+    color: var(--text-heading) !important;
     font-weight: 600 !important;
 }
 
@@ -191,12 +191,12 @@ h2, h3 {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #2D3350;
+    background: var(--border);
     border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #7C5CFC;
+    background: var(--accent);
 }
 
 /* ---- Number input buttons ---- */
